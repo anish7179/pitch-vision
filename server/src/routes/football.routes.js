@@ -1,257 +1,79 @@
 // ============================================
 // src/routes/football.routes.js
 // ============================================
-// Proxy routes for API-Football data.
-// These wrap the rate-limited apiFootball client, ensuring
-// the frontend never calls API-Football directly.
+// Football data routes — all routed through controllers.
 //
-// In Phase 1, we include a basic status/quota check endpoint
-// and stub routes that will be expanded in Phase 2 (Scorecard)
-// and Phase 3 (Profiles).
+// PHASE 2 ARCHITECTURE:
+//   /live and /scorecard routes read from MongoDB (cron-populated)
+//   All other routes proxy through the Phase 1 API-Football cache
 //
-// INTERVIEW CONCEPT — Backend-for-Frontend (BFF) Pattern:
-// The React frontend calls OUR Express server, not API-Football
-// directly. This gives us:
-//   1. Rate limiting (one place to enforce the quota)
-//   2. Caching (one cache layer, not per-client)
-//   3. Data transformation (reshape API responses for our UI)
-//   4. Security (API key stays on the server, never sent to browser)
+// Route map:
+//   GET /api/football/live                   → All live matches (MongoDB)
+//   GET /api/football/scorecard/:id          → Full scorecard (MongoDB or API cache)
+//   GET /api/football/scorecard/:id/events   → Match events timeline
+//   GET /api/football/scorecard/:id/lineups  → Match lineups
+//   GET /api/football/scorecard/:id/stats    → Match statistics
+//   GET /api/football/fixtures               → Fixtures by date/league/team
+//   GET /api/football/standings              → League standings
+//   GET /api/football/teams/:id              → Team info
+//   GET /api/football/players/:id            → Player season stats
+//   GET /api/football/squads/:teamId         → Squad list
+//   GET /api/football/transfers/:playerId    → Transfer history
+//
+// INTERVIEW CONCEPT — Route Ordering:
+// Express matches routes top-down, stopping at the first
+// match. More specific routes MUST come before less specific:
+//   /scorecard/:id/events  ← BEFORE /scorecard/:id
+//   /scorecard/:id         ← would swallow "/events" as :id
 // ============================================
 
 import { Router } from 'express';
 import authenticate from '../middleware/auth.js';
-import apiFootball from '../utils/apiFootball.js';
-import { AppError } from '../middleware/errorHandler.js';
+import {
+  getLiveMatches,
+  getScorecard,
+  getFixtureEvents,
+  getFixtureLineups,
+  getFixtureStats,
+  getFixtures,
+  getStandings,
+  getTeamInfo,
+  getPlayerStats,
+  getSquad,
+  getTransfers,
+} from '../controllers/football.controller.js';
 
 const router = Router();
 
 // All football data routes require authentication
 router.use(authenticate);
 
-/**
- * @route   GET /api/football/fixtures
- * @desc    Get fixtures for a given date or league
- * @access  Protected
- *
- * Query params:
- *   - date (YYYY-MM-DD)
- *   - league (league ID)
- *   - season (year)
- */
-router.get('/fixtures', async (req, res, next) => {
-  try {
-    const { date, league, season, team, last, next: nextCount } = req.query;
-    const params = {};
+// ── Live Matches (from MongoDB cron cache) ───────────────────
+router.get('/live', getLiveMatches);
 
-    if (date) params.date = date;
-    if (league) params.league = league;
-    if (season) params.season = season;
-    if (team) params.team = team;
-    if (last) params.last = last;
-    if (nextCount) params.next = nextCount;
+// ── Scorecard (MongoDB for live, API-Football cache for others)
+// Sub-routes MUST come before the parent route
+router.get('/scorecard/:id/events', getFixtureEvents);
+router.get('/scorecard/:id/lineups', getFixtureLineups);
+router.get('/scorecard/:id/stats', getFixtureStats);
+router.get('/scorecard/:id', getScorecard);
 
-    // At least one parameter is required
-    if (Object.keys(params).length === 0) {
-      throw new AppError(
-        'At least one query parameter is required: date, league, season, team, last, or next',
-        400
-      );
-    }
+// ── Fixtures (API-Football cache) ────────────────────────────
+router.get('/fixtures', getFixtures);
 
-    const result = await apiFootball.fetchFromApi('/fixtures', params);
+// ── Standings ────────────────────────────────────────────────
+router.get('/standings', getStandings);
 
-    res.status(200).json({
-      success: true,
-      data: result.data,
-      meta: {
-        fromCache: result.fromCache,
-        stale: result.stale,
-        quotaRemaining: result.quotaRemaining,
-      },
-    });
-  } catch (err) {
-    next(err);
-  }
-});
+// ── Teams ────────────────────────────────────────────────────
+router.get('/teams/:id', getTeamInfo);
 
-/**
- * @route   GET /api/football/fixtures/:id
- * @desc    Get a single fixture by ID (full scorecard data)
- * @access  Protected
- */
-router.get('/fixtures/:id', async (req, res, next) => {
-  try {
-    const fixtureId = parseInt(req.params.id, 10);
-    if (isNaN(fixtureId)) {
-      throw new AppError('Invalid fixture ID. Must be a number.', 400);
-    }
+// ── Players ──────────────────────────────────────────────────
+router.get('/players/:id', getPlayerStats);
 
-    const result = await apiFootball.getFixture(fixtureId);
+// ── Squads ───────────────────────────────────────────────────
+router.get('/squads/:teamId', getSquad);
 
-    res.status(200).json({
-      success: true,
-      data: result.data,
-      meta: {
-        fromCache: result.fromCache,
-        stale: result.stale,
-        quotaRemaining: result.quotaRemaining,
-      },
-    });
-  } catch (err) {
-    next(err);
-  }
-});
-
-/**
- * @route   GET /api/football/standings
- * @desc    Get league standings
- * @access  Protected
- *
- * Query params:
- *   - league (required, league ID)
- *   - season (required, year)
- */
-router.get('/standings', async (req, res, next) => {
-  try {
-    const { league, season } = req.query;
-    if (!league || !season) {
-      throw new AppError('Both league and season query parameters are required.', 400);
-    }
-
-    const result = await apiFootball.getStandings(league, season);
-
-    res.status(200).json({
-      success: true,
-      data: result.data,
-      meta: {
-        fromCache: result.fromCache,
-        stale: result.stale,
-        quotaRemaining: result.quotaRemaining,
-      },
-    });
-  } catch (err) {
-    next(err);
-  }
-});
-
-/**
- * @route   GET /api/football/teams/:id
- * @desc    Get team information
- * @access  Protected
- */
-router.get('/teams/:id', async (req, res, next) => {
-  try {
-    const teamId = parseInt(req.params.id, 10);
-    if (isNaN(teamId)) {
-      throw new AppError('Invalid team ID. Must be a number.', 400);
-    }
-
-    const result = await apiFootball.getTeamInfo(teamId);
-
-    res.status(200).json({
-      success: true,
-      data: result.data,
-      meta: {
-        fromCache: result.fromCache,
-        stale: result.stale,
-        quotaRemaining: result.quotaRemaining,
-      },
-    });
-  } catch (err) {
-    next(err);
-  }
-});
-
-/**
- * @route   GET /api/football/players/:id
- * @desc    Get player season statistics
- * @access  Protected
- *
- * Query params:
- *   - season (required, year)
- */
-router.get('/players/:id', async (req, res, next) => {
-  try {
-    const playerId = parseInt(req.params.id, 10);
-    if (isNaN(playerId)) {
-      throw new AppError('Invalid player ID. Must be a number.', 400);
-    }
-
-    const season = req.query.season;
-    if (!season) {
-      throw new AppError('Season query parameter is required.', 400);
-    }
-
-    const result = await apiFootball.getPlayerStats(playerId, season);
-
-    res.status(200).json({
-      success: true,
-      data: result.data,
-      meta: {
-        fromCache: result.fromCache,
-        stale: result.stale,
-        quotaRemaining: result.quotaRemaining,
-      },
-    });
-  } catch (err) {
-    next(err);
-  }
-});
-
-/**
- * @route   GET /api/football/squads/:teamId
- * @desc    Get squad list for a team
- * @access  Protected
- */
-router.get('/squads/:teamId', async (req, res, next) => {
-  try {
-    const teamId = parseInt(req.params.teamId, 10);
-    if (isNaN(teamId)) {
-      throw new AppError('Invalid team ID. Must be a number.', 400);
-    }
-
-    const result = await apiFootball.getSquad(teamId);
-
-    res.status(200).json({
-      success: true,
-      data: result.data,
-      meta: {
-        fromCache: result.fromCache,
-        stale: result.stale,
-        quotaRemaining: result.quotaRemaining,
-      },
-    });
-  } catch (err) {
-    next(err);
-  }
-});
-
-/**
- * @route   GET /api/football/transfers/:playerId
- * @desc    Get player transfer history
- * @access  Protected
- */
-router.get('/transfers/:playerId', async (req, res, next) => {
-  try {
-    const playerId = parseInt(req.params.playerId, 10);
-    if (isNaN(playerId)) {
-      throw new AppError('Invalid player ID. Must be a number.', 400);
-    }
-
-    const result = await apiFootball.getTransfers(playerId);
-
-    res.status(200).json({
-      success: true,
-      data: result.data,
-      meta: {
-        fromCache: result.fromCache,
-        stale: result.stale,
-        quotaRemaining: result.quotaRemaining,
-      },
-    });
-  } catch (err) {
-    next(err);
-  }
-});
+// ── Transfers ────────────────────────────────────────────────
+router.get('/transfers/:playerId', getTransfers);
 
 export default router;

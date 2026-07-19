@@ -31,6 +31,7 @@ import passport from './config/passport.js';
 import env from './config/env.js';
 import connectDB from './config/db.js';
 import errorHandler from './middleware/errorHandler.js';
+import { startLiveMatchCron, stopLiveMatchCron, getCronStatus } from './cron/liveMatches.js';
 
 // ── Route imports ────────────────────────────────────────────
 import authRoutes from './routes/auth.routes.js';
@@ -83,6 +84,7 @@ app.get('/api/health', (req, res) => {
       timestamp: new Date().toISOString(),
       uptime: `${Math.floor(process.uptime())}s`,
       environment: env.nodeEnv,
+      cronStatus: getCronStatus(),
     },
   });
 });
@@ -114,6 +116,9 @@ const startServer = async () => {
     await connectDB();
 
     // Start listening
+    // Start the live match cron job AFTER MongoDB is connected
+    startLiveMatchCron();
+
     app.listen(env.port, () => {
       console.log('\n🏟️  ═══════════════════════════════════════════');
       console.log('   PitchVision Server');
@@ -123,6 +128,7 @@ const startServer = async () => {
       console.log(`   API Base    : http://localhost:${env.port}/api`);
       console.log(`   Health      : http://localhost:${env.port}/api/health`);
       console.log(`   OAuth URL   : http://localhost:${env.port}/api/auth/google`);
+      console.log(`   Live Cron   : every 5 minutes (UTC)`);
       console.log('   ═══════════════════════════════════════════\n');
     });
   } catch (err) {
