@@ -17,7 +17,6 @@ import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import { useSocket } from './hooks/useSocket';
-
 export default function App() {
   // Initialize global socket connection
   useSocket();
@@ -26,13 +25,13 @@ export default function App() {
     <ThemeProvider>
       <AuthProvider>
         <BrowserRouter>
-          <div className="relative min-h-screen w-full flex flex-col items-center font-sans bg-[var(--bg-primary)]">
+          <div className="relative min-h-screen w-full flex flex-col items-center font-sans bg-(--bg-primary)">
             
             {/* Navbar - Fixed at top */}
             <Navbar />
 
             {/* Central Content Pillar */}
-            <div className="w-full flex-grow flex flex-col items-center">
+            <div className="w-full grow flex flex-col items-center">
               <main className="w-full max-w-7xl min-h-screen flex flex-col transition-colors duration-300 pb-12 px-4 md:px-8">
                 {/* The spacer pushing content below the navbar */}
                 <div className="h-32 w-full shrink-0"></div>

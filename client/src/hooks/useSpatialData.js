@@ -43,10 +43,9 @@ export const EVENT_FILTERS = {
  *   setTeamFilter: Function,
  *   eventCount: number,      - Total count of filtered events
  *   uniqueTeams: Array,      - Unique team names extracted from the data
- *   refetch: Function,
  * }}
  */
-export function useSpatialData(matchId) {
+export function useSpatialData(matchId, filterPlayerId = null) {
   // ── Filter State ──────────────────────────────────────────
   const [activeFilter, setActiveFilter] = useState(EVENT_FILTERS.ALL);
   const [teamFilter, setTeamFilter] = useState(null);
@@ -81,18 +80,23 @@ export function useSpatialData(matchId) {
   const filteredEvents = useMemo(() => {
     let result = events;
 
+    // Filter by specific player if provided (Compare Mode)
+    if (filterPlayerId) {
+      result = result.filter((e) => e.player_id === filterPlayerId);
+    }
+
     // Filter by event type (Pass, Shot, etc.) unless ALL or HEATMAP mode is selected
     if (activeFilter !== EVENT_FILTERS.ALL && activeFilter !== EVENT_FILTERS.HEATMAP) {
       result = result.filter((e) => e.event_type === activeFilter);
     }
 
-    // Filter by team
-    if (teamFilter) {
+    // Filter by team (only if not filtering by player)
+    if (teamFilter && !filterPlayerId) {
       result = result.filter((e) => e.team === teamFilter);
     }
 
     return result;
-  }, [events, activeFilter, teamFilter]);
+  }, [events, activeFilter, teamFilter, filterPlayerId]);
 
   // ── Reset filters when match changes ──────────────────────
   const resetFilters = useCallback(() => {

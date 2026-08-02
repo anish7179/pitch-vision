@@ -30,7 +30,7 @@ import PitchRenderer from './PitchRenderer';
 
 // Anish Dhananjay Pawar (23BCE11329)
 
-export default function SpatialPitchContainer({ matchId }) {
+export default function SpatialPitchContainer({ matchId, filterPlayerId = null }) {
   // ── Ref to the pitch container element ────────────────────
   const containerRef = useRef(null);
 
@@ -48,7 +48,7 @@ export default function SpatialPitchContainer({ matchId }) {
     setActiveFilter,
     teamFilter,
     setTeamFilter,
-  } = useSpatialData(matchId);
+  } = useSpatialData(matchId, filterPlayerId);
 
   // ── ResizeObserver: track container pixel dimensions ──────
   useEffect(() => {
@@ -116,7 +116,7 @@ export default function SpatialPitchContainer({ matchId }) {
       {/* ── Filter Controls ─────────────────────────────────── */}
       <div className="flex flex-wrap items-center gap-3">
         {/* Event Type Filter */}
-        <div className="flex bg-gray-100 dark:bg-zinc-800 p-1 rounded-lg">
+        <div className="flex gap-4 bg-gray-100 dark:bg-zinc-800 p-2 rounded-xl">
           {filterButtons.map((btn) => (
             <button
               key={btn.key}
@@ -132,8 +132,8 @@ export default function SpatialPitchContainer({ matchId }) {
           ))}
         </div>
 
-        {/* Team Filter */}
-        {uniqueTeams.length > 1 && (
+        {/* Team Filter (Hidden if filtering by specific player) */}
+        {!filterPlayerId && uniqueTeams.length > 1 && (
           <div className="flex items-center gap-2">
             <Filter size={14} className="text-gray-500" />
             <select

@@ -1,8 +1,10 @@
 import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
+import { useApi } from "../hooks/useApi";
 
 export default function Matches() {
+  const navigate = useNavigate();
   const containerVariants = {
     hidden: { opacity: 0 },
     show: {
@@ -23,52 +25,10 @@ export default function Matches() {
   const today = new Date().toISOString().split('T')[0];
   const [selectedDate, setSelectedDate] = useState(today);
   const formattedDate = new Date(selectedDate).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-  const matches = [
-    {
-      id: 1,
-      league: "UEFA Champions League",
-      round: "Round 2 first leg",
-      home: "Mjällby",
-      away: "Lincoln Red Imps",
-      time: "21:30",
-      status: "Upcoming",
-      homeColor: "#FFD700",
-      awayColor: "#FF0000",
-    },
-    {
-      id: 2,
-      league: "UEFA Champions League",
-      round: "Round 2 first leg",
-      home: "Iberia",
-      away: "Slovan Bratislava",
-      time: "21:30",
-      status: "Upcoming",
-      homeColor: "#00529F",
-      awayColor: "#87CEEB",
-    },
-    {
-      id: 3,
-      league: "UEFA Champions League",
-      round: "Round 2 first leg",
-      home: "Sabah",
-      away: "KuPS",
-      time: "21:30",
-      status: "Upcoming",
-      homeColor: "#000000",
-      awayColor: "#FFFF00",
-    },
-    {
-      id: 4,
-      league: "UEFA Champions League",
-      round: "Round 2 first leg",
-      home: "Ararat-Armenia",
-      away: "Shamrock Rovers",
-      time: "21:30",
-      status: "Upcoming",
-      homeColor: "#FF8C00",
-      awayColor: "#008000",
-    },
-  ];
+  
+  const { data: matchesResponse, loading } = useApi('/spatial/matches');
+  const allMatches = Array.isArray(matchesResponse) ? matchesResponse : [];
+  const matches = allMatches.filter(m => m.date === selectedDate);
 
   return (
     <motion.div
@@ -181,59 +141,44 @@ export default function Matches() {
               variants={containerVariants}
               className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6"
             >
-              {matches.map((match) => (
-                <motion.div
-                  variants={itemVariants}
-                  key={match.id}
-                  className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl flex overflow-hidden hover:shadow-lg hover:border-green-500 transition-all cursor-pointer group"
-                >
-                  <div className="flex-grow p-5 flex flex-col justify-center gap-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div
-                          className="w-1.5 h-6 rounded-full shadow-sm"
-                          style={{
-                            backgroundColor: match.homeColor,
-                          }}
-                        ></div>
-                        <img
-                          src={`https://api.dicebear.com/7.x/shapes/svg?seed=${match.home}`}
-                          className="w-6 h-6 rounded bg-gray-200 dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700"
-                        />
-                        <span className="font-bold text-gray-900 dark:text-white font-sans">
-                          {match.home}
-                        </span>
+              {loading ? (
+                <div className="col-span-full py-12 flex justify-center text-(--text-muted) font-bold tracking-widest uppercase">
+                  Loading matches...
+                </div>
+              ) : matches.length === 0 ? (
+                <div className="col-span-full py-12 flex justify-center text-(--text-muted) font-bold tracking-widest uppercase">
+                  No matches found for this date
+                </div>
+              ) : (
+                matches.map((match) => (
+                  <motion.div
+                    variants={itemVariants}
+                    key={match.match_id}
+                    onClick={() => navigate(`/match/${match.match_id}`)}
+                    className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl flex overflow-hidden hover:shadow-lg hover:border-green-500 transition-all cursor-pointer group"
+                  >
+                    <div className="grow p-5 flex flex-col justify-center gap-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-1.5 h-6 rounded-full shadow-sm bg-(--color-brand)"></div>
+                          <span className="font-bold text-gray-900 dark:text-white font-sans text-lg">
+                            {match.home_team} vs {match.away_team}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs font-bold text-gray-500 uppercase tracking-widest">
+                        <span>Spatial Events Available</span>
                       </div>
                     </div>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div
-                          className="w-1.5 h-6 rounded-full shadow-sm"
-                          style={{
-                            backgroundColor: match.awayColor,
-                          }}
-                        ></div>
-                        <img
-                          src={`https://api.dicebear.com/7.x/shapes/svg?seed=${match.away}`}
-                          className="w-6 h-6 rounded bg-gray-200 dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700"
-                        />
-                        <span className="font-bold text-gray-900 dark:text-white font-sans">
-                          {match.away}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
 
-                  <div className="w-28 bg-gray-50 dark:bg-black border-l border-gray-200 dark:border-zinc-800 flex flex-col items-center justify-center gap-2 p-3 group-hover:bg-green-50 dark:group-hover:bg-green-900/20 transition-colors relative overflow-hidden">
-                    <span className="text-gray-900 dark:text-white font-display font-bold text-xl relative z-10">
-                      {match.time}
-                    </span>
-                    <button className="text-sm font-bold text-gray-500 dark:text-zinc-500 group-hover:text-green-500 flex items-center gap-1 transition-colors relative z-10 uppercase tracking-widest">
-                      <span className="text-green-500 text-xs">▶</span> Watch
-                    </button>
-                  </div>
-                </motion.div>
-              ))}
+                    <div className="w-28 bg-gray-50 dark:bg-black border-l border-gray-200 dark:border-zinc-800 flex flex-col items-center justify-center gap-2 p-3 group-hover:bg-green-50 dark:group-hover:bg-green-900/20 transition-colors relative overflow-hidden">
+                      <button className="text-sm font-bold text-gray-500 dark:text-zinc-500 group-hover:text-green-500 flex items-center gap-1 transition-colors relative z-10 uppercase tracking-widest">
+                        <span className="text-green-500 text-xs">▶</span> View
+                      </button>
+                    </div>
+                  </motion.div>
+                ))
+              )}
             </motion.div>
           </div>
         </div>
