@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import apiClient from '../api/axios';
 import { Activity, Clock, LogOut } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 const Dashboard = () => {
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const { logout, user } = useAuth();
 
   useEffect(() => {
     const fetchLiveMatches = async () => {
@@ -15,12 +17,7 @@ const Dashboard = () => {
           setMatches(response.data.data.matches);
         }
       } catch (err) {
-        // Handle 401 Unauthorized by redirecting to login
-        if (err.response && err.response.status === 401) {
-          window.location.href = '/login';
-        } else {
-          setError('Failed to fetch live matches. Please try again later.');
-        }
+        setError('Failed to fetch live matches. Please try again later.');
       } finally {
         setLoading(false);
       }
@@ -32,15 +29,6 @@ const Dashboard = () => {
     return () => clearInterval(intervalId);
   }, []);
 
-  const handleLogout = async () => {
-    try {
-      await apiClient.post('/auth/logout');
-      window.location.href = '/login';
-    } catch (err) {
-      console.error('Logout failed', err);
-    }
-  };
-
   return (
     <div className="dashboard-container">
       <header className="dashboard-header glass-panel">
@@ -48,27 +36,32 @@ const Dashboard = () => {
           <span className="brand-logo">⚽</span>
           <h2>PitchVision Live</h2>
         </div>
-        <button className="logout-btn" onClick={handleLogout}>
-          <LogOut size={16} /> Logout
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          {user && <span style={{ color: 'var(--text-muted)' }}>{user.name}</span>}
+          <button className="logout-btn" onClick={logout}>
+            <LogOut size={16} /> Logout
+          </button>
+        </div>
       </header>
 
       <main className="dashboard-main">
         <div className="section-title">
-          <h3>
-            <Activity className="icon-pulse" size={20} /> Active Matches
-          </h3>
-          <div className="live-badge">LIVE</div>
+          <div className="glass-panel" style={{ padding: '10px 20px', display: 'flex', alignItems: 'center', gap: '12px', borderRadius: '12px' }}>
+            <h3>
+              <Activity className="icon-pulse" size={20} /> Active Matches
+            </h3>
+            <div className="live-badge">LIVE</div>
+          </div>
         </div>
 
         {loading && (
-          <div className="loading-state">
+          <div className="loading-state glass-panel">
             <div className="spinner"></div>
-            <p>Loading live match data...</p>
+            <p>Syncing live match data...</p>
           </div>
         )}
 
-        {error && <div className="error-banner">{error}</div>}
+        {error && <div className="error-banner glass-panel">{error}</div>}
 
         {!loading && !error && matches.length === 0 && (
           <div className="empty-state glass-panel">

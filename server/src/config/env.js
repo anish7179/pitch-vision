@@ -65,6 +65,9 @@ const env = Object.freeze({
   apiFootballKey: process.env.API_FOOTBALL_KEY,
   apiFootballBaseUrl: process.env.API_FOOTBALL_BASE_URL,
   apiFootballDailyLimit: parseInt(process.env.API_FOOTBALL_DAILY_LIMIT, 10) || 90,
+
+  // Redis (optional — server degrades gracefully without it)
+  redisUrl: process.env.REDIS_URL || 'redis://127.0.0.1:6379',
 });
 
 export default env;

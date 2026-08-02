@@ -27,3 +27,8 @@ __pycache__/
 *.pyc
 .venv/
 venv/
+
+# Data
+server/data/
+python_service/*.png
+fix_tailwind.py

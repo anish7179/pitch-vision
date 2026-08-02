@@ -50,6 +50,7 @@
 import cron from 'node-cron';
 import LiveMatch from '../models/LiveMatch.js';
 import { consumeQuota, checkQuota } from '../utils/rateLimiter.js';
+import { getCache, setCache } from '../config/redisClient.js';
 import env from '../config/env.js';
 import axios from 'axios';
 
@@ -287,17 +288,21 @@ const pollLiveMatches = async () => {
 
     // ── Step 3: No live matches — nothing to do ──────────
     if (fixtures.length === 0) {
+      // Cache empty state so frontend knows there are no live matches
+      await setCache('live:matches', [], 300);
       console.log(`✅  [Cron] No live matches. Poll took ${Date.now() - startTime}ms.`);
       return;
     }
 
     // ── Step 4: Parse fixtures ───────────────────────────
     const operations = [];
+    const parsedMatches = [];
     let parseErrors = 0;
 
     for (const fixture of fixtures) {
       try {
         const parsed = parseFixture(fixture);
+        parsedMatches.push(parsed);
         operations.push({
           updateOne: {
             filter: { matchId: parsed.matchId },
@@ -324,6 +329,66 @@ const pollLiveMatches = async () => {
         `${parseErrors} parse errors. ` +
         `Poll took ${Date.now() - startTime}ms.`
       );
+    }
+
+    // ── Step 6: Cache in Redis ───────────────────────────
+    // TTL of 5 minutes matches our cron interval. The next
+    // poll will overwrite this key with fresh data.
+    await setCache('live:matches', parsedMatches, 300);
+
+    // ── Step 7: Detect score changes & emit via Socket.io ─
+    // Compare current scores against the previous cached
+    // snapshot. If any match has a different score, emit
+    // targeted events to clients watching that match.
+    try {
+      const previousSnapshot = await getCache('live:matches:previous');
+      const previousScores = {};
+
+      if (previousSnapshot && Array.isArray(previousSnapshot)) {
+        for (const match of previousSnapshot) {
+          previousScores[match.matchId] = {
+            home: match.goals?.home,
+            away: match.goals?.away,
+          };
+        }
+      }
+
+      // Emit score changes via Socket.io
+      // We dynamically import the io instance to avoid circular deps
+      const { io } = await import('../server.js');
+
+      for (const match of parsedMatches) {
+        const prev = previousScores[match.matchId];
+        const curr = { home: match.goals?.home, away: match.goals?.away };
+
+        // Score changed (or brand new match)
+        if (!prev || prev.home !== curr.home || prev.away !== curr.away) {
+          const payload = {
+            matchId: match.matchId,
+            teams: match.teams,
+            goals: match.goals,
+            status: match.status,
+            league: match.league,
+          };
+
+          // Emit to the specific match room
+          io.to(`match:${match.matchId}`).emit('match:scoreUpdate', payload);
+
+          // Emit to the global live feed
+          io.emit('live:scoreChange', payload);
+
+          console.log(
+            `📢  [Cron] Score change: ${match.teams?.home?.name} ${curr.home} - ${curr.away} ${match.teams?.away?.name} ` +
+            `(was ${prev?.home ?? '?'} - ${prev?.away ?? '?'})`
+          );
+        }
+      }
+
+      // Save current snapshot as "previous" for next comparison
+      await setCache('live:matches:previous', parsedMatches, 600);
+    } catch (emitErr) {
+      // Socket.io emission is non-critical — log and continue
+      console.warn(`⚠️  [Cron] Score change detection/emit error: ${emitErr.message}`);
     }
   } catch (err) {
     // Handle specific axios errors

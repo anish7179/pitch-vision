@@ -1,40 +1,84 @@
-import React from 'react';
-import { LogIn } from 'lucide-react';
+import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import { motion } from 'framer-motion';
 
-const Login = () => {
-  const handleGoogleLogin = () => {
-    // Redirects to our backend route for Google OAuth
-    window.location.href = 'http://localhost:5000/api/auth/google';
+export default function Login() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const { login } = useAuth();
+  const navigate = useNavigate();
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    login({ name: 'User' }); // Mock login
+    navigate('/dashboard');
   };
 
   return (
-    <div className="login-container">
-      <div className="login-card glass-panel">
-        <div className="login-header">
-          <div className="logo-placeholder">
-            <span className="logo-icon">⚽</span>
-          </div>
-          <h1>PitchVision</h1>
-          <p>Enterprise Football Analytics Platform</p>
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+      className="flex justify-center items-center flex-1 w-full mt-10"
+    >
+      <div className="bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 p-8 rounded-xl w-full max-w-md shadow-lg transition-colors duration-300">
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-display font-bold text-gray-900 dark:text-white mb-2">Welcome Back</h1>
+          <p className="text-gray-500 dark:text-zinc-400">Sign in to your PitchVision account</p>
         </div>
 
-        <button className="google-auth-btn" onClick={handleGoogleLogin}>
-          <img
-            src="https://www.svgrepo.com/show/475656/google-color.svg"
-            alt="Google Logo"
-            className="google-icon"
-          />
-          Sign in with Google
-          <LogIn className="btn-icon" size={18} />
+        <button className="w-full flex items-center justify-center gap-3 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-white font-bold py-3 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors mb-4">
+          <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" className="w-5 h-5"/> 
+          Continue with Google
         </button>
-      </div>
 
-      <div className="ambient-background">
-        <div className="blob blob-1"></div>
-        <div className="blob blob-2"></div>
+        <div className="flex items-center my-6">
+          <div className="flex-grow border-t border-zinc-300 dark:border-zinc-700"></div>
+          <span className="px-3 text-zinc-500 text-sm">OR</span>
+          <div className="flex-grow border-t border-zinc-300 dark:border-zinc-700"></div>
+        </div>
+
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-bold text-gray-700 dark:text-zinc-300">Email Address</label>
+            <input 
+              type="email" 
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="px-4 py-3 rounded-lg bg-white dark:bg-black border border-gray-300 dark:border-zinc-800 text-gray-900 dark:text-white focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 transition-all"
+              placeholder="you@example.com"
+              required
+            />
+          </div>
+
+          <div className="flex flex-col gap-1 mb-2">
+            <label className="text-sm font-bold text-gray-700 dark:text-zinc-300">Password</label>
+            <input 
+              type="password" 
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="px-4 py-3 rounded-lg bg-white dark:bg-black border border-gray-300 dark:border-zinc-800 text-gray-900 dark:text-white focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 transition-all"
+              placeholder="••••••••"
+              required
+            />
+          </div>
+
+          <button 
+            type="submit" 
+            className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 rounded-lg shadow-md transition-all"
+          >
+            Sign In
+          </button>
+        </form>
+
+        <p className="text-center mt-6 text-gray-500 dark:text-zinc-400 text-sm">
+          Don't have an account?{' '}
+          <Link to="/signup" className="text-green-500 font-bold hover:underline">
+            Sign up
+          </Link>
+        </p>
       </div>
-    </div>
+    </motion.div>
   );
-};
-
-export default Login;
+}

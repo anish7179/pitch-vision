@@ -247,6 +247,10 @@ export const getSquad = (teamId) =>
 export const getTransfers = (playerId) =>
   fetchFromApi('/transfers', { player: playerId }, { ttl: TTL.TEAM_INFO });
 
+/** Fetch recent fixtures for a team in a given season. */
+export const getTeamFixtures = (teamId, season, last = 10) =>
+  fetchFromApi('/fixtures', { team: teamId, season, last }, { ttl: TTL.FIXTURES });
+
 /** Fetch fixture player statistics (per-player match stats). */
 export const getFixturePlayerStats = (fixtureId) =>
   fetchFromApi('/fixtures/players', { fixture: fixtureId });
@@ -261,6 +265,7 @@ export default {
   getFixtureStats,
   getPlayerStats,
   getTeamInfo,
+  getTeamFixtures,
   getSquad,
   getTransfers,
   getFixturePlayerStats,

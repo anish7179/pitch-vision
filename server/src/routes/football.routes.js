@@ -41,12 +41,22 @@ import {
   getPlayerStats,
   getSquad,
   getTransfers,
+  getCompetitions,
+  getMatchesByCompetition,
+  getPlayerHistory,
 } from '../controllers/football.controller.js';
 
 const router = Router();
 
-// All football data routes require authentication
-router.use(authenticate);
+// ── Competitions Index ───────────────────────────────────────
+router.get('/competitions', getCompetitions);
+
+// ── Matches by Competition & Season ──────────────────────────
+router.get('/matches/:comp_id/:season_id', getMatchesByCompetition);
+
+// All football data routes are public for the main UI
+// (If user-specific features are added later, add authenticate per-route)
+// router.use(authenticate);
 
 // ── Live Matches (from MongoDB cron cache) ───────────────────
 router.get('/live', getLiveMatches);
@@ -69,6 +79,7 @@ router.get('/teams/:id', getTeamInfo);
 
 // ── Players ──────────────────────────────────────────────────
 router.get('/players/:id', getPlayerStats);
+router.get('/player/:player_id/history', getPlayerHistory);
 
 // ── Squads ───────────────────────────────────────────────────
 router.get('/squads/:teamId', getSquad);
